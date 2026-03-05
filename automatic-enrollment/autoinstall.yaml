@@ -47,9 +47,6 @@ autoinstall:
     - curtin in-target --target=/target -- apt-get update
     - curtin in-target --target=/target -- apt-get install -y microsoft-edge-stable
 
-    # change device name
-    - curtin in-target --target=/target -- bash -c 'h="C-$(tr -d "\n" </sys/class/dmi/id/product_serial 2>/dev/null || echo unknown)"; hostnamectl set-hostname "$h"'
-
     # Remove bloatware
     - curtin in-target --target=/target -- apt-get purge -y libreoffice-common
     - curtin in-target --target=/target -- apt-get purge -y libreoffice*
@@ -62,9 +59,6 @@ autoinstall:
     - curtin in-target --target=/target -- bash -c 'sed -i "s/^enabled=.*/enabled=0/" /etc/default/apport 2>/dev/null || true' # Disable crash collection
     - curtin in-target --target=/target -- bash -c 'sed -i "s/^report_crashes=.*/report_crashes=false/" /etc/default/whoopsie 2>/dev/null || true' # Disable crash uploading
     - curtin in-target --target=/target -- bash -c 'systemctl disable --now whoopsie.service 2>/dev/null || true'
-
-    # Disable GNOME initial setup pages
-    - curtin in-target --target=/target -- bash -c 'printf "%s\n" "[pages]" "skip=language;keyboard;timezone;privacy;network;summary" > /etc/gnome-initial-setup/vendor.conf'
 
     # Clean up
     - curtin in-target --target=/target -- apt-get autoremove -y
