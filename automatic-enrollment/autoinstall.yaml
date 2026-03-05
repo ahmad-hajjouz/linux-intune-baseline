@@ -2,7 +2,6 @@
 autoinstall:
   version: 1
   user-data:
-    users: [""]
     disable_root: false
     preserve_hostname: true
   ssh:
@@ -62,6 +61,9 @@ autoinstall:
     - curtin in-target --target=/target -- bash -c 'sed -i "s/^enabled=.*/enabled=0/" /etc/default/apport 2>/dev/null || true' # Disable crash collection
     - curtin in-target --target=/target -- bash -c 'sed -i "s/^report_crashes=.*/report_crashes=false/" /etc/default/whoopsie 2>/dev/null || true' # Disable crash uploading
     - curtin in-target --target=/target -- bash -c 'systemctl disable --now whoopsie.service 2>/dev/null || true'
+
+    # Disable GNOME initial setup pages
+    - curtin in-target --target=/target -- bash -c 'printf "%s\n" "[pages]" "skip=language;keyboard;timezone;privacy;network;summary" > /etc/gnome-initial-setup/vendor.conf'
 
     # Clean up
     - curtin in-target --target=/target -- apt-get autoremove -y
