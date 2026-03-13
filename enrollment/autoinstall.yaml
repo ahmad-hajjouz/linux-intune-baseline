@@ -53,16 +53,6 @@ autoinstall:
     - curtin in-target --target=/target -- apt-get purge -y remmina*
     - curtin in-target --target=/target -- apt-get purge -y transmission*
 
-    # Disable telemetry and crash collection
-    
-    - curtin in-target --target=/target -- bash -c 'ubuntu-report -f send no || true' # disable "ubuntu-report" telemetry
-    - curtin in-target --target=/target -- bash -c 'sed -i "s/^enabled=.*/enabled=0/" /etc/default/apport 2>/dev/null || true' # Disable crash collection
-    - curtin in-target --target=/target -- bash -c 'sed -i "s/^report_crashes=.*/report_crashes=false/" /etc/default/whoopsie 2>/dev/null || true' # Disable crash uploading
-    - curtin in-target --target=/target -- bash -c 'systemctl disable --now whoopsie.service 2>/dev/null || true'
-
-    # Set hostname to "C-" followed by the device's serial number
-    - curtin in-target --target=/target -- bash -c 's=$(tr -d "\n" </sys/class/dmi/id/product_serial 2>/dev/null || echo unknown); hostnamectl set-hostname "C-$s" --pretty --static'
-
     # Clean up
     - curtin in-target --target=/target -- apt-get autoremove -y
     - curtin in-target --target=/target -- apt-get clean
