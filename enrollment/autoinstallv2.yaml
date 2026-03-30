@@ -1,0 +1,66 @@
+#cloud-config
+autoinstall:
+  version: 1
+  user-data:
+    users: [""]
+    disable_root: false
+    preserve_hostname: true
+  ssh:
+    install-server: no
+  storage:
+    layout:
+      name: lvm
+  keyboard:
+    layout: de
+  locale: en_US
+  timezone: "Europe/Berlin"
+  updates: security
+  shutdown: reboot
+  packages:
+    - curl
+    - git
+    - wget
+    - gpg
+  snaps: # Install apps from this catalog: https://snapcraft.io/store
+    - name: code
+      classic: true
+    - name: vlc
+    - name: powershell
+      classic: true
+    - name: sublime-text
+      classic: true
+  late-commands:
+    # Install Microsoft Intune Portal
+    - curtin in-target --target=/target -- mkdir -p /tmp/microsoft
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft && curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg'
+    - curtin in-target --target=/target -- install -o root -g root -m 644 /tmp/microsoft/microsoft.gpg /usr/share/keyrings/microsoft.gpg
+    - curtin in-target --target=/target -- sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/24.04/prod noble main" > /etc/apt/sources.list.d/microsoft-ubuntu-noble-prod.list'
+    - curtin in-target --target=/target -- apt-get update
+    - curtin in-target --target=/target -- apt-get install -y intune-portal
+
+    # Install Microsoft Edge
+    - curtin in-target --target=/target -- sh -c 'curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg'
+    - curtin in-target --target=/target -- install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+    - curtin in-target --target=/target -- sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge-dev.list'
+    - curtin in-target --target=/target -- rm microsoft.gpg
+    - curtin in-target --target=/target -- apt-get update
+    - curtin in-target --target=/target -- apt-get install -y microsoft-edge-stable
+
+    # Install Microsoft Defender for Endpoint
+    - curtin in-target --target=/target -- mkdir -p /tmp/microsoft-defender
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -L -o MicrosoftDefenderATPOnboardingLinuxServer.py https://raw.githubusercontent.com/ahmad-hajjouz/linux-intune-baseline/main/defender/MicrosoftDefenderATPOnboardingLinuxServer.py'
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -L -o mde_installer.sh https://raw.githubusercontent.com/microsoft/mdatp-xplat/master/linux/installation/mde_installer.sh'
+    - curtin in-target --target=/target -- chmod +x /tmp/microsoft-defender/mde_installer.sh
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && ./mde_installer.sh -i -s -o "MicrosoftDefenderATPOnboardingLinuxServer.py"'
+
+    # Remove bloatware
+    - curtin in-target --target=/target -- apt-get purge -y libreoffice-common
+    - curtin in-target --target=/target -- apt-get purge -y libreoffice*
+    - curtin in-target --target=/target -- apt-get purge -y remmina*
+    - curtin in-target --target=/target -- apt-get purge -y transmission*
+
+    # Clean up
+    - curtin in-target --target=/target -- apt-get autoremove -y
+    - curtin in-target --target=/target -- apt-get clean
+    - curtin in-target --target=/target -- rm -rf /tmp/microsoft
+    - curtin in-target --target=/target -- rm -rf /tmp/microsoft-defender
