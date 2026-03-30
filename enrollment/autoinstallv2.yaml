@@ -30,28 +30,28 @@ autoinstall:
     - name: sublime-text
       classic: true
   late-commands:
-    # Install Microsoft Intune Portal
+    # Install Microsoft Intune Portal using the official Microsoft repo config package
+    # This avoids the Signed-By conflict with mde_installer.sh on Ubuntu 24.04
     - curtin in-target --target=/target -- mkdir -p /tmp/microsoft
-    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft && curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg'
-    - curtin in-target --target=/target -- install -o root -g root -m 644 /tmp/microsoft/microsoft.gpg /usr/share/keyrings/microsoft.gpg
-    - curtin in-target --target=/target -- sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/24.04/prod noble main" > /etc/apt/sources.list.d/microsoft-ubuntu-noble-prod.list'
+    - curtin in-target --target=/target -- rm -f /etc/apt/sources.list.d/microsoft-ubuntu-noble-prod.list
+    - curtin in-target --target=/target -- rm -f /usr/share/keyrings/microsoft.gpg
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft && curl -fsSL -o packages-microsoft-prod.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb'
+    - curtin in-target --target=/target -- dpkg -i /tmp/microsoft/packages-microsoft-prod.deb
     - curtin in-target --target=/target -- apt-get update
     - curtin in-target --target=/target -- apt-get install -y intune-portal
 
     # Install Microsoft Edge
-    - curtin in-target --target=/target -- sh -c 'curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg'
-    - curtin in-target --target=/target -- install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
-    - curtin in-target --target=/target -- sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge-dev.list'
-    - curtin in-target --target=/target -- rm microsoft.gpg
+    - curtin in-target --target=/target -- sh -c 'curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft-edge.gpg'
+    - curtin in-target --target=/target -- sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-edge.gpg] https://packages.microsoft.com/repos/edge stable main" > /etc/apt/sources.list.d/microsoft-edge.list'
     - curtin in-target --target=/target -- apt-get update
     - curtin in-target --target=/target -- apt-get install -y microsoft-edge-stable
 
     # Install Microsoft Defender for Endpoint
     - curtin in-target --target=/target -- mkdir -p /tmp/microsoft-defender
-    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -L -o MicrosoftDefenderATPOnboardingLinuxServer.py https://raw.githubusercontent.com/ahmad-hajjouz/linux-intune-baseline/main/defender/MicrosoftDefenderATPOnboardingLinuxServer.py'
-    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -L -o mde_installer.sh https://raw.githubusercontent.com/microsoft/mdatp-xplat/master/linux/installation/mde_installer.sh'
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -fsSL -o MicrosoftDefenderATPOnboardingLinuxServer.py https://raw.githubusercontent.com/ahmad-hajjouz/linux-intune-baseline/main/defender/MicrosoftDefenderATPOnboardingLinuxServer.py'
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && curl -fsSL -o mde_installer.sh https://raw.githubusercontent.com/microsoft/mdatp-xplat/master/linux/installation/mde_installer.sh'
     - curtin in-target --target=/target -- chmod +x /tmp/microsoft-defender/mde_installer.sh
-    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && ./mde_installer.sh -i -s -o "MicrosoftDefenderATPOnboardingLinuxServer.py"'
+    - curtin in-target --target=/target -- sh -c 'cd /tmp/microsoft-defender && bash ./mde_installer.sh -i -s -o ./MicrosoftDefenderATPOnboardingLinuxServer.py'
 
     # Remove bloatware
     - curtin in-target --target=/target -- apt-get purge -y libreoffice-common
