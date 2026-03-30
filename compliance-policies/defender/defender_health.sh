@@ -1,27 +1,43 @@
 #!/bin/bash
+set -u
 
-log="$HOME/IntuneCompliance_defender.log"
-echo "$(date) | Starting Defender compliance discovery" >> "$log"
+# Intune Linux custom compliance discovery script
+# Checks whether Microsoft Defender for Endpoint (mdatp) is installed
+# and whether the mdatp service is currently active.
+# Runs in user context; no elevation is required.
 
-defender_installed=false
-defender_healthy=false
+installed=false
+running=false
 
-if command -v mdatp >/dev/null 2>&1; then
-    defender_installed=true
-    echo "$(date) | Defender is installed" >> "$log"
-
-    mdatp_health=$(mdatp health 2>/dev/null)
-    defender_healthy_value=$(echo "$mdatp_health" | awk -F': *' '$1=="healthy"{print tolower($2); exit}')
-
-    if [[ "$defender_healthy_value" == "true" ]]; then
-        defender_healthy=true
+# Detect installation.
+# Primary check for Ubuntu/Debian package-based installation.
+if command -v dpkg-query >/dev/null 2>&1; then
+    if dpkg-query -W -f='${Status}' mdatp 2>/dev/null | grep -q '^install ok installed$'; then
+        installed=true
     fi
-
-    echo "$(date) | Defender healthy: $defender_healthy" >> "$log"
-else
-    echo "$(date) | Defender not installed" >> "$log"
 fi
 
-printf '{ "defender_installed": %s, "defender_healthy": %s }\n' "$defender_installed" "$defender_healthy"
+# Fallbacks in case dpkg metadata is unavailable but binaries/paths exist.
+if [ "$installed" = false ]; then
+    if command -v mdatp >/dev/null 2>&1 || [ -x "/opt/microsoft/mdatp/sbin/wdavdaemon" ] || [ -d "/opt/microsoft/mdatp" ]; then
+        installed=true
+    fi
+fi
 
-echo "$(date) | Ending Defender compliance discovery" >> "$log"
+# Detect running state only if Defender appears to be installed.
+if [ "$installed" = true ]; then
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl is-active --quiet mdatp.service 2>/dev/null || systemctl is-active --quiet mdatp 2>/dev/null; then
+            running=true
+        fi
+    fi
+
+    # Fallback if systemctl is unavailable or returns no active state.
+    if [ "$running" = false ] && command -v pgrep >/dev/null 2>&1; then
+        if pgrep -x wdavdaemon >/dev/null 2>&1; then
+            running=true
+        fi
+    fi
+fi
+
+printf '{"DefenderInstalled":%s,"DefenderRunning":%s}\n' "$installed" "$running"
