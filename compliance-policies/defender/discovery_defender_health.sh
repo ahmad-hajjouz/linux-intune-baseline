@@ -2,12 +2,13 @@
 set -u
 
 # Intune Linux custom compliance discovery script
-# Checks whether Microsoft Defender for Endpoint (mdatp) is installed
-# and whether the mdatp service is currently active.
+# Checks whether Microsoft Defender for Endpoint (mdatp) is installed,
+# whether the service is active, and whether Defender reports healthy=true.
 # Runs in user context; no elevation is required.
 
 installed=false
 running=false
+healthy=false
 
 # Detect installation.
 # Primary check for Ubuntu/Debian package-based installation.
@@ -38,6 +39,15 @@ if [ "$installed" = true ]; then
             running=true
         fi
     fi
+
+    # Detect health via documented mdatp health field.
+    # Normalize any casing/whitespace and treat anything other than true as false.
+    if command -v mdatp >/dev/null 2>&1; then
+        health_value="$(mdatp health --field healthy 2>/dev/null | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+        if [ "$health_value" = "true" ]; then
+            healthy=true
+        fi
+    fi
 fi
 
-printf '{"DefenderInstalled":%s,"DefenderRunning":%s}\n' "$installed" "$running"
+printf '{"DefenderInstalled":%s,"DefenderRunning":%s,"DefenderHealthy":%s}\n' "$installed" "$running" "$healthy"
